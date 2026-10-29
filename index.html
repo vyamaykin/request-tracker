@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Department request tracker</title>
+<!-- Fonts: Archivo for headings, Public Sans for body -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ---------- Color tokens (light) ---------- */
+:root{
+  --bg:#F3F6F9; --surface:#FFFFFF; --ink:#14202E; --muted:#5A6878; --line:#D6DEE7;
+  --req:#5E9C2F; --vis:#2B74C4; --launch:#1E3A7B;          /* cycle phase colors */
+  --retail:#C08A00; --excel:#7A3FD6; --hr:#C7317A; --contracts:#0E7C70; /* department colors */
+  --today:#D23B3B; --track:#E7ECF2;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+/* ---------- Color tokens (dark, follows system unless forced light) ---------- */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1620; --surface:#16212D; --ink:#E6EDF4; --muted:#9AA8B7; --line:#2A3846;
+    --req:#7BBE48; --vis:#4E95E0; --launch:#5A7BD0;
+    --retail:#E2AE2A; --excel:#A37BF0; --hr:#E8609F; --contracts:#2FB3A2;
+    --today:#FF6B6B; --track:#223040; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1620; --surface:#16212D; --ink:#E6EDF4; --muted:#9AA8B7; --line:#2A3846;
+  --req:#7BBE48; --vis:#4E95E0; --launch:#5A7BD0;
+  --retail:#E2AE2A; --excel:#A37BF0; --hr:#E8609F; --contracts:#2FB3A2;
+  --today:#FF6B6B; --track:#223040; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:Archivo,"Public Sans",system-ui,sans-serif;margin:0;letter-spacing:-.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--vis);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 20px 48px}
+
+/* ---------- Header ---------- */
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between;margin-bottom:20px}
+header.top h1{font-size:clamp(26px,3.4vw,38px);font-weight:800}
+header.top p{margin:4px 0 0;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--vis);border-color:var(--vis);color:#fff}
+.btn.danger{color:var(--today)}
+.field{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;min-width:0}
+#deptForm{flex-wrap:nowrap}
+.msg{color:var(--today);font-size:13px;align-self:center}
+
+/* ---------- Department filter chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px 6px 8px;cursor:pointer;font-weight:600}
+.chip[aria-pressed="false"]{opacity:.45}
+.dot{width:14px;height:14px;border-radius:50%;flex:none}
+
+/* ---------- Main grid: tracker + side panel ---------- */
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr);gap:20px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.panel h2{font-size:18px;margin-bottom:10px}
+
+/* ---------- Stage key ---------- */
+/* Fill down first: 1-2-3 in column one, 4-5-6 in column two, 7-8-9 in column three */
+.key{list-style:none;margin:0 0 16px;padding:0;display:grid;grid-template-rows:repeat(3,auto);grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:column;gap:4px 14px;font-size:13px;color:var(--muted)}
+/* Narrow screens: single column, still 1 to 9 top to bottom */
+@media (max-width:520px){.key{grid-template-rows:none;grid-template-columns:1fr;grid-auto-flow:row}}
+.key b{display:inline-block;min-width:1.4em;color:var(--ink)}
+
+/* ---------- Progress tracker rows ---------- */
+.trk{display:flex;flex-direction:column;gap:12px}
+.trk-row{border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.trk-row.sel{border-color:var(--vis);box-shadow:inset 3px 0 0 var(--vis)}
+.trk-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:8px}
+.trk-name{border:0;background:none;padding:0;cursor:pointer;font-family:Archivo,"Public Sans",sans-serif;font-weight:700;font-size:16px;display:inline-flex;gap:8px;align-items:center;text-align:left}
+.trk-stage{color:var(--muted);font-size:14px}
+.trk-pct{margin-left:auto;font-family:Archivo,sans-serif;font-weight:800;font-size:20px}
+.bar9{display:grid;grid-template-columns:repeat(9,1fr);gap:3px}
+.seg{height:22px;border:0;padding:0;background:var(--track);cursor:pointer;font-size:11px;font-weight:700;color:var(--muted)}
+.seg:first-child{border-radius:6px 0 0 6px}.seg:last-child{border-radius:0 6px 6px 0}
+.seg.done{background:var(--c);color:#fff}
+.seg.now{background:var(--c);color:#fff;box-shadow:inset 0 0 0 2px var(--ink)}
+.trk-raci{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;font-size:13px;color:var(--muted)}
+.trk-raci strong{color:var(--ink);font-weight:600}
+
+/* ---------- Stage questions accordion ---------- */
+.qcard{margin-top:20px}
+.qhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.qhead h2{margin-bottom:0}
+.acc{border-top:1px solid var(--line)}
+.acc:last-child{border-bottom:1px solid var(--line)}
+.acc summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:12px;padding:12px 4px}
+.acc summary::-webkit-details-marker{display:none}
+.acc summary::after{content:"+";margin-left:auto;font-size:20px;line-height:1;color:var(--muted)}
+.acc[open] summary::after{content:"\2212"} /* minus sign when open */
+.acc .num{font-family:Archivo,sans-serif;font-weight:800;font-size:18px;min-width:1.4em}
+.acc .title{font-family:Archivo,sans-serif;font-weight:700;font-size:16px}
+.acc .when{color:var(--muted);font-size:13px}
+.acc .body{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 24px;padding:0 4px 16px calc(1.4em + 16px)}
+.acc h3{font-size:14px;margin:0 0 6px}
+.acc ul{margin:0;padding-left:18px;font-size:14px}
+.acc li{margin-bottom:4px;max-width:60ch}
+.acc .count{color:var(--muted);font-size:13px}
+.acc .tip{grid-column:1/-1;margin:0;padding:10px 12px;border-left:3px solid var(--vis);background:var(--bg);font-size:14px;max-width:80ch}
+@media (prefers-reduced-motion:no-preference){.seg{transition:background-color .2s}}
+
+/* ---------- Request list ---------- */
+.list{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-direction:column;gap:6px}
+.list button{width:100%;text-align:left;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;border:1px solid var(--line);background:transparent;border-radius:10px;padding:8px 10px;cursor:pointer}
+.list button[aria-current="true"]{border-color:var(--vis);box-shadow:inset 3px 0 0 var(--vis)}
+.list .name{font-weight:600}
+.list .meta{grid-column:2;color:var(--muted);font-size:13px}
+
+/* ---------- Edit form ---------- */
+form.edit{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+form.edit label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:600}
+form.edit .full{grid-column:1/-1}
+form.edit input,form.edit select,form.edit textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 9px;font-size:14px;font-weight:400}
+.stepper{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+.empty{color:var(--muted)}
+/* Sort control */
+.sort{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-weight:600}
+.sort select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;font-weight:400}
+/* Blockers */
+.blk h4{font-family:Archivo,sans-serif;font-size:14px;margin:6px 0}
+.blk ul{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:6px}
+.blk li{display:flex;gap:10px;align-items:baseline;justify-content:space-between;border-left:3px solid var(--today);background:var(--bg);padding:6px 10px;border-radius:0 6px 6px 0;font-size:14px}
+.blk .empty{margin:0 0 8px;font-size:14px}
+.blk-add{display:flex;gap:8px}
+.blk-add input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 9px}
+.blk-x{border:0;background:none;padding:0;font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer;flex:none}
+.blk-x:hover{color:var(--today)}
+.blk-badge{font-size:12px;font-weight:700;color:#fff;background:var(--today);border-radius:999px;padding:1px 8px}
+.blk-text{color:var(--today);font-weight:600}
+/* Quiet delete: small muted text link, bottom right; turns red on hover or when armed */
+.del-row{grid-column:1/-1;display:flex;justify-content:flex-end;margin-top:4px}
+.link-del{border:0;background:none;padding:2px 0;font-size:13px;color:var(--muted);text-decoration:underline;cursor:pointer}
+.link-del:hover,.link-del.armed{color:var(--today)}
+
+@media (prefers-reduced-motion:no-preference){.marker circle{transition:r .15s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header with page actions -->
+  <header class="top">
+    <div>
+      <h1>Department request tracker</h1>
+      <p>Where each department request sits in the dashboard process, and when it runs.</p>
+    </div>
+    <div class="actions">
+      <!-- New department: typed name, added on submit -->
+      <form id="deptForm" class="actions" aria-label="Add department">
+        <input id="deptName" class="field" placeholder="New department name" maxlength="40" aria-label="New department name">
+        <button class="btn" type="submit">Add department</button>
+      </form>
+      <button class="btn primary" id="addBtn" type="button">Add request</button>
+    </div>
+  </header>
+
+  <!-- Department filters -->
+  <div class="chips" id="chips" role="group" aria-label="Show departments"></div>
+
+  <div class="grid">
+    <!-- Progress tracker: one filling bar per request -->
+    <section class="panel" aria-labelledby="trkTitle">
+      <div class="qhead">
+        <h2 id="trkTitle">Progress through release stages</h2>
+        <label class="sort">Sort
+          <select id="sortSel">
+            <option value="none">Order added</option>
+            <option value="desc">Most complete first</option>
+            <option value="asc">Least complete first</option>
+          </select>
+        </label>
+      </div>
+      <ol class="key" id="key"></ol>
+      <div class="trk" id="tracker"></div>
+    </section>
+
+    <!-- Request list and editor -->
+    <section class="panel" aria-labelledby="listTitle">
+      <h2 id="listTitle">Requests</h2>
+      <ul class="list" id="list"></ul>
+      <div id="editor"></div>
+    </section>
+  </div>
+
+  <!-- Questions per stage: one collapsible section each, all closed on load -->
+  <section class="panel qcard" aria-labelledby="qTitle">
+    <div class="qhead">
+      <h2 id="qTitle">Questions for each stage</h2>
+      <button class="btn" id="collapseAll" type="button">Collapse all</button>
+    </div>
+    <div id="questions"></div>
+  </section>
+
+</div>
+
+<script>
+/* ===================== Static configuration ===================== */
+
+// 9 release stages from the release process doc, with Responsible / Accountable and typical timing
+const STAGES = [
+  {name:"Request & Intake",               r:"End users",  a:"Executive stakeholders", when:"Week 1"},
+  {name:"Requirements & Design",          r:"Developers", a:"Executive stakeholders", when:"Weeks 1 to 3"},
+  {name:"Build",                          r:"Developers", a:"Developers",             when:"Weeks 3 to 9"},
+  {name:"QA & Validation",                r:"Developers", a:"Developers",             when:"Weeks 9 to 12"},
+  {name:"Stakeholder Review & Approval",  r:"End users",  a:"Executive stakeholders", when:"Weeks 11 to 12"},
+  {name:"Release",                        r:"Developers", a:"Developers",             when:"Week 12"},
+  {name:"Training & Enablement",          r:"Developers", a:"Developers",             when:"Weeks 12 to 13"},
+  {name:"Monitoring & Maintenance",       r:"Developers", a:"Developers",             when:"Ongoing"},
+  {name:"Review, Iteration & Retirement", r:"Developers", a:"Executive stakeholders", when:"Ongoing"}
+];
+const STEPS = STAGES.map(s => s.name); // stage names, used by list and editor
+// Old 16-step cycle index -> new 9-stage index, so saved requests keep a sensible stage
+const OLD_TO_NEW = [0,1,1,1,1,1,1,1,1,3,2,2,6,3,5,7];
+// Departments with short badge text and color token
+const DEPTS = {
+  "Retail":       {short:"R",  color:"var(--retail)"},
+  "Excel Center": {short:"EC", color:"var(--excel)"},
+  "HR":           {short:"HR", color:"var(--hr)"},
+  "Contracts":    {short:"C",  color:"var(--contracts)"}
+};
+const STORE_KEY = "dept-request-tracker-v1"; // localStorage key
+
+// Starting data: one epic per department. Stages and dates are editable starting points.
+const SEED = {
+  view:{start:"2025-07", count:21},
+  requests:[
+    {id:"r1", dept:"Retail",       name:"Retail - New",                    jira:"GDL-947", stage:2, start:"2026-05-21", end:"2026-11-30", notes:""},
+    {id:"r2", dept:"Excel Center", name:"Excel Center Report Development", jira:"GDL-128", stage:3, start:"2025-07-18", end:"2026-11-30", notes:""},
+    {id:"r3", dept:"HR",           name:"HR reporting",                    jira:"",        stage:0, start:"2026-11-02", end:"2027-02-01", notes:""},
+    {id:"r4", dept:"Contracts",    name:"Contract Report Portal",          jira:"",        stage:0, start:"2026-10-28", end:"2027-01-29", notes:""}
+  ],
+  stageModel:9
+};
+
+/* ===================== State ===================== */
+
+// Load saved state; fall back to seed when storage is empty or blocked
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const s = JSON.parse(raw);
+      if(s && Array.isArray(s.requests)){
+        // One-time move from 16-step cycle to 9 stages, keeping names, depts and dates
+        if(s.stageModel !== 9){ s.requests.forEach(r => r.stage = OLD_TO_NEW[r.stage] ?? 0); s.stageModel = 9; }
+        return s;
+      }
+    }
+  }catch(e){ /* storage unavailable: use seed */ }
+  return structuredClone(SEED);
+}
+// Save state; ignore failures so page keeps working
+function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
+
+let state = load();
+
+// Colors handed out to new departments, in order
+const EXTRA_COLORS = ["#5B6BD6","#8C6D1F","#1F8FBF","#9A3FA8","#4F8A10","#B04A3A","#2F6F8F","#A0522D"];
+// Badge text from department name: first letters of up to 2 words
+const initials = n => n.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase();
+// Restore saved custom departments into DEPTS
+state.customDepts = state.customDepts || [];
+for(const d of state.customDepts) DEPTS[d.name] = {short:d.short, color:d.color};
+// Departments filtered out: start with only Contracts shown
+const hidden = new Set(Object.keys(DEPTS).filter(d => d !== "Contracts"));
+// Request open in editor: first visible one
+let selectedId = (state.requests.find(r => !hidden.has(r.dept)) || {}).id || null;
+
+/* ===================== Helpers ===================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// Shown requests, sorted by chosen order (stage and completion % move together: % = stage / 9)
+const visible = () => {
+  const v = state.requests.filter(r => !hidden.has(r.dept));
+  if(state.sort==="asc")  v.sort((a,b)=>a.stage-b.stage);
+  if(state.sort==="desc") v.sort((a,b)=>b.stage-a.stage);
+  return v;
+};
+
+// Stage key: numbered list of all 9 stages, drawn once
+$("#key").innerHTML = STAGES.map((s,i)=>`<li><b>${i+1}</b>${esc(s.name)}</li>`).join("");
+
+/* ===================== Department chips ===================== */
+function renderChips(){
+  const box=$("#chips"); box.innerHTML="";
+  for(const [d,info] of Object.entries(DEPTS)){
+    const n = state.requests.filter(r=>r.dept===d).length;
+    const b=document.createElement("button");
+    b.type="button"; b.className="chip"; b.setAttribute("aria-pressed", String(!hidden.has(d)));
+    b.innerHTML=`<span class="dot" style="background:${info.color}"></span>${esc(d)} (${n})`;
+    b.onclick=()=>{ // toggle filter; turning a department on selects its first request
+      if(hidden.has(d)){ hidden.delete(d); const first=state.requests.find(r=>r.dept===d); if(first) selectedId=first.id; }
+      else hidden.add(d);
+      renderAll();
+    };
+    box.appendChild(b);
+  }
+}
+
+/* ===================== Progress tracker ===================== */
+function renderTracker(){
+  const box=$("#tracker"); box.innerHTML="";
+  const reqs=visible();
+  if(!reqs.length){ box.innerHTML=`<p class="empty">No requests shown. Turn on a department above or add a request.</p>`; return; }
+  for(const r of reqs){
+    const d=DEPTS[r.dept]||{color:"var(--muted)"}, st=STAGES[r.stage], pct=Math.round((r.stage+1)/STAGES.length*100);
+    const row=document.createElement("div");
+    row.className="trk-row"+(r.id===selectedId?" sel":""); row.style.setProperty("--c",d.color);
+    // Header: name (selects request), current stage, percent complete
+    row.innerHTML=`
+      <div class="trk-head">
+        <button type="button" class="trk-name"><span class="dot" style="background:${d.color}"></span>${esc(r.name)}</button>
+        <span class="trk-stage">${esc(r.dept)}, stage ${r.stage+1} of 9: ${esc(st.name)}</span>
+        ${(r.blockers||[]).length?`<span class="blk-badge">${r.blockers.length} blocker${r.blockers.length>1?"s":""}</span>`:""}
+        <span class="trk-pct">${pct}%</span>
+      </div>
+      <div class="bar9" role="group" aria-label="Set stage for ${esc(r.name)}"></div>
+      <div class="trk-raci">
+        <span>Responsible: <strong>${esc(st.r)}</strong></span>
+        <span>Accountable: <strong>${esc(st.a)}</strong></span>
+        <span>Typical timing: <strong>${esc(st.when)}</strong></span>
+      </div>`;
+    row.querySelector(".trk-name").onclick=()=>{ selectedId=r.id; renderAll(); };
+    // 9 segments: filled up to current stage; click a segment to set stage
+    const bar=row.querySelector(".bar9");
+    STAGES.forEach((s,i)=>{
+      const seg=document.createElement("button");
+      seg.type="button"; seg.className="seg"+(i<r.stage?" done":i===r.stage?" now":"");
+      seg.textContent=i+1; seg.title=`Set to stage ${i+1}: ${s.name}`;
+      seg.setAttribute("aria-label",`Stage ${i+1}, ${s.name}`); seg.setAttribute("aria-pressed",String(i===r.stage));
+      seg.onclick=()=>{ r.stage=i; selectedId=r.id; save(); renderAll(); };
+      bar.appendChild(seg);
+    });
+    box.appendChild(row);
+  }
+}
+
+/* ===================== Request list ===================== */
+function renderList(){
+  const ul=$("#list"); ul.innerHTML="";
+  const reqs=visible();
+  if(!reqs.length){ ul.innerHTML=`<li class="empty">No requests shown. Turn on a department above or add a request.</li>`; return; }
+  for(const r of reqs){
+    const d=DEPTS[r.dept], li=document.createElement("li"), b=document.createElement("button");
+    b.type="button"; b.setAttribute("aria-current", String(r.id===selectedId));
+    b.innerHTML=`<span class="dot" style="background:${d.color}"></span><span class="name">${esc(r.name)}</span>
+      <span class="meta">${esc(r.dept)}${r.jira?` · ${esc(r.jira)}`:""} · Stage ${r.stage+1}: ${esc(STEPS[r.stage])}${(r.blockers||[]).length?` · <span class="blk-text">${r.blockers.length} blocked</span>`:""}</span>`;
+    b.onclick=()=>{ selectedId=r.id; renderAll(); };
+    li.appendChild(b); ul.appendChild(li);
+  }
+}
+
+/* ===================== Editor ===================== */
+function renderEditor(){
+  const box=$("#editor"), r=state.requests.find(x=>x.id===selectedId);
+  if(!r){ box.innerHTML=`<p class="empty">Pick a request to edit its stage and dates.</p>`; return; }
+  const deptOpts=Object.keys(DEPTS).map(d=>`<option ${d===r.dept?"selected":""}>${esc(d)}</option>`).join("");
+  const stepOpts=STEPS.map((s,i)=>`<option value="${i}" ${i===r.stage?"selected":""}>${i+1}. ${esc(s)}</option>`).join("");
+  box.innerHTML=`
+    <h3 style="font-size:15px;margin:4px 0 10px">Edit request</h3>
+    <form class="edit" id="editForm">
+      <label class="full">Name <input name="name" value="${esc(r.name)}" required></label>
+      <label>Department <select name="dept">${deptOpts}</select></label>
+      <label>Jira key <input name="jira" value="${esc(r.jira)}" placeholder="GDL-123"></label>
+      <label class="full">Current stage <select name="stage">${stepOpts}</select></label>
+      <label>Start <input type="date" name="start" value="${esc(r.start)}"></label>
+      <label>Target end <input type="date" name="end" value="${esc(r.end)}"></label>
+      <label class="full">Notes <textarea name="notes" rows="2">${esc(r.notes||"")}</textarea></label>
+      <div class="full blk">
+        <h4>Blockers</h4>
+        ${(r.blockers||[]).length
+          ? `<ul>${r.blockers.map((b,i)=>`<li><span>${esc(b)}</span><button type="button" class="blk-x" data-i="${i}" aria-label="Remove blocker: ${esc(b)}">Remove</button></li>`).join("")}</ul>`
+          : `<p class="empty">No blockers.</p>`}
+        <div class="blk-add">
+          <input id="blkInput" placeholder="Describe what is blocking progress" aria-label="New blocker">
+          <button class="btn" type="button" id="blkAdd">Add blocker</button>
+        </div>
+      </div>
+      <div class="del-row"><button class="link-del" type="button" id="delBtn">Delete request</button></div>
+    </form>`;
+  const f=$("#editForm");
+  // Any field change updates state and redraws other views (keeps focus in editor)
+  f.addEventListener("change",e=>{
+    const n=e.target.name; if(!n) return;
+    r[n] = n==="stage" ? Number(e.target.value) : e.target.value;
+    if(n==="start"||n==="end"){ if(r.start && r.end && r.end<r.start){ r.end=r.start; f.end.value=r.end; } }
+    save(); renderChips(); renderTracker(); renderList();
+    if(n==="stage"||n==="dept"){ renderEditor(); openSelectedStage(); }
+  });
+  // Text fields save on every keystroke, so nothing is lost if page closes before field loses focus
+  f.addEventListener("input",e=>{
+    const n=e.target.name; if(!["name","jira","notes"].includes(n)) return;
+    r[n]=e.target.value; save(); renderTracker(); renderList(); // editor not redrawn, keeps cursor in place
+  });
+  // Blockers: add from input (button or Enter), remove per item
+  const addBlocker=()=>{
+    const t=$("#blkInput").value.trim(); if(!t) return;
+    (r.blockers=r.blockers||[]).push(t); save();
+    renderTracker(); renderList(); renderEditor(); $("#blkInput").focus(); // keep typing next blocker
+  };
+  $("#blkAdd").onclick=addBlocker;
+  $("#blkInput").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addBlocker(); } });
+  f.querySelectorAll(".blk-x").forEach(b=>b.onclick=()=>{
+    r.blockers.splice(Number(b.dataset.i),1); save(); renderTracker(); renderList(); renderEditor();
+  });
+  // Delete in two clicks: browser pop-ups are blocked in this viewer, so confirm inline
+  const del=$("#delBtn"); let armed=false, timer;
+  del.onclick=()=>{
+    if(!armed){
+      armed=true; del.textContent="Click again to delete"; del.classList.add("armed");
+      timer=setTimeout(()=>{ armed=false; del.textContent="Delete request"; del.classList.remove("armed"); },4000); // reset after 4 s
+      return;
+    }
+    clearTimeout(timer);
+    state.requests=state.requests.filter(x=>x.id!==r.id);
+    selectedId=(state.requests.find(x=>!hidden.has(x.dept))||{}).id||null; // next visible request
+    save(); renderAll();
+  };
+}
+
+/* ===================== Timeline ===================== */
+// Month math: "YYYY-MM" -> month number, and fractional position of a date
+const monthNum = ym => { const [y,m]=ym.split("-").map(Number); return y*12+(m-1); };
+function datePos(iso){
+  const d=new Date(iso+"T00:00:00"); const days=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  return d.getFullYear()*12+d.getMonth()+(d.getDate()-1)/days;
+}
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function renderTimeline(){
+  const v=state.view, start=monthNum(v.start), count=Math.max(3,Math.min(36,Number(v.count)||12));
+  $("#tlStart").value=v.start; $("#tlCount").value=count;
+  const tl=$("#tl"); tl.innerHTML="";
+  const pct = p => ((p-start)/count)*100;   // position -> percent of track
+  const gridlines=`repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px ${100/count}%)`;
+
+  // Month header row
+  tl.appendChild(document.createElement("div"));
+  const head=document.createElement("div"); head.className="tl-months"; head.style.gridTemplateColumns=`repeat(${count},1fr)`;
+  for(let i=0;i<count;i++){ const m=start+i, c=document.createElement("div");
+    c.textContent=`${MONTHS[m%12]}${(m%12===0||i===0)?" "+Math.floor(m/12):""}`; head.appendChild(c); }
+  tl.appendChild(head);
+
+  const reqs=visible();
+  if(!reqs.length){ const e=document.createElement("p"); e.className="empty"; e.style.gridColumn="1/-1"; e.textContent="No requests to show."; tl.appendChild(e); return; }
+  const now=new Date(), todayPos=now.getFullYear()*12+now.getMonth()+(now.getDate()-1)/31;
+
+  for(const r of reqs){
+    const d=DEPTS[r.dept];
+    // Left label
+    const lab=document.createElement("div"); lab.className="tl-label";
+    lab.innerHTML=`<span class="dot" style="background:${d.color}"></span><span>${esc(r.name)}<small>${esc(r.dept)}</small></span>`;
+    tl.appendChild(lab);
+    // Track row
+    const row=document.createElement("div"); row.className="tl-row"; row.style.setProperty("--gridlines",gridlines);
+    if(r.start && r.end){
+      const s=datePos(r.start), e=datePos(r.end)+1/30;
+      const left=Math.max(0,pct(s)), right=Math.min(100,pct(e));
+      if(right>0 && left<100){
+        const bar=document.createElement("div"); bar.className="bar"; bar.style.setProperty("--c",d.color);
+        bar.style.left=left+"%"; bar.style.width=Math.max(1,right-left)+"%";
+        if(pct(s)<0) bar.classList.add("off-left"); if(pct(e)>100) bar.classList.add("off-right");
+        bar.title=`${r.name}: ${r.start} to ${r.end}, step ${r.stage+1} ${STEPS[r.stage]}`;
+        const fill=document.createElement("div"); fill.className="fill"; fill.style.width=((r.stage+1)/STEPS.length*100)+"%";
+        const txt=document.createElement("span"); txt.textContent=`${r.stage+1}/16 ${STEPS[r.stage]}`;
+        bar.append(fill,txt); bar.onclick=()=>{ selectedId=r.id; renderAll(); };
+        row.appendChild(bar);
+      }
+    }
+    // Today line
+    const tp=pct(todayPos); if(tp>=0&&tp<=100){ const t=document.createElement("div"); t.className="today"; t.style.left=tp+"%"; row.appendChild(t); }
+    tl.appendChild(row);
+  }
+}
+
+/* ===================== Controls ===================== */
+// Add new department from header form
+$("#deptForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const input=$("#deptName"), name=input.value.trim().replace(/\s+/g," ");
+  if(!name) { input.focus(); return; }
+  // Reject duplicates, ignoring case
+  if(Object.keys(DEPTS).some(d=>d.toLowerCase()===name.toLowerCase())){
+    input.setCustomValidity(`${name} already exists`); input.reportValidity(); return;
+  }
+  const d={name, short:initials(name), color:EXTRA_COLORS[state.customDepts.length % EXTRA_COLORS.length]};
+  state.customDepts.push(d); DEPTS[name]={short:d.short, color:d.color};
+  hidden.delete(name); input.value=""; save(); renderAll();
+});
+// Clear duplicate warning once user types again
+$("#deptName").addEventListener("input",e=>e.target.setCustomValidity(""));
+// Add new request with default 90-day window from today
+$("#addBtn").onclick=()=>{
+  const t=new Date(), e=new Date(t.getTime()+90*864e5), iso=d=>d.toISOString().slice(0,10);
+  const r={id:"r"+Date.now(), dept:"Retail", name:"New request", jira:"", stage:0, start:iso(t), end:iso(e), notes:""};
+  state.requests.push(r); hidden.delete(r.dept); selectedId=r.id; save(); renderAll();
+  document.querySelector('#editForm input[name="name"]')?.select();
+};
+
+/* ===================== Stage questions ===================== */
+// Questions per stage, grouped by who answers them. Built from release process doc and dev checklist.
+const QUESTIONS = [
+  // Stage 1 (discovery: project background + current state): learn the problem, check feasibility, decide priority
+  {"Current state":["Walk me through how a report gets made and shared today, start to finish.","What's slow, manual, or error-prone?","Which tools and files are involved?"],
+   "Users and goals":["Who will use it, and how often?","What business question should it answer?","What would make this a success for you?"],
+   "Data and constraints":["Where does the data come from, and who owns it?","What are the deadlines, budget limits, or system dependencies?"],
+   "Open questions and next steps":["What haven't we asked that we should have?","Who else should we talk to?"],
+   "Developers":["Is request logged in Jira?","Do needed data sources exist, and can we access them?","What is rough effort estimate?"],
+   "End users":["Is request submitted in Jira with business justification?"],
+   "Executive stakeholders":["How does request rank against department priorities?","Approve for development queue, or decline with reasoning?"]},
+  // Stage 2 (user research + design goals + deliverables): define what to build and how it must work
+  {"User research":["What challenges and frustrations do users have?","What are the top 3 things they need to do?","What do they already know about the data? What do they need to know?"],
+   "Goals and scope":["What actions would team take based on this report?","Which reports matter most? Which can wait?","How will we measure success, such as usage or time saved?"],
+   "Data":["What calculations are needed?","How fresh must the data be, and how often should it refresh?"],
+   "Layout and features":["What is report or dashboard title?","Where will it be viewed: desktop, large TV display, mobile?","What filters do people need?","What exports do people need?","Any accessibility needs, such as screen readers, color contrast, or text size?"],
+   "Access and compliance":["Who should have access?","Are there approval, audit, or compliance requirements?"],
+   "Sign-off":["Is every metric definition confirmed, with no ambiguity on what number means?","Has wireframe been reviewed, including missing filters, breakdowns, or views?","Has executive signed off on scope before build?"]},
+  {"Developers":["Are gateways, settings, and failure notifications set up?","Which date ranges are used most (for date table)?","Is row-level security set up to match agreed access?","Is refresh schedule set?","Is quick-win MVP (1 to 2 pages) ready by week 4?","Is Knowledge Based Article (KBA) up to date?"],
+   "End users":["Are clarifying questions from developers answered?"]},
+  {"Developers":["Do numbers match source systems and AMI?","In Staging, does report refresh and show correct totals?","Did performance and load testing pass?","Are QA defects fixed?"],
+   "End users":["Was UAT run against known scenarios?","Do numbers match existing reporting you trust?","Which reliability bucket fits: unreliable, reliable with caveats, or endorsed?"]},
+  {"Developers":["Were finished report and QA results presented?","Does it meet data governance and access policy?"],
+   "End users":["Is formal sign-off given that it is fit for use?"],
+   "Executive stakeholders":["Does it align with strategic priorities and governance standards?","Is release approved?"]},
+  {"Developers":["Is it published to production in Power BI App?","Are final access permissions set?","Is it added to report catalog?","Is distribution list notified?"],
+   "End users":["Can you access live report?","Any issues right after launch?"],
+   "Executive stakeholders":["Has availability been announced to wider department?"]},
+  {"Developers":["Is end-user documentation provided?","Did handover session (1 to 2 hours) happen within 1 week of sign-off?","Are usage metrics shared with leadership?"],
+   "End users":["Did team attend walkthrough?","What early usability feedback came up?"],
+   "Executive stakeholders":["Is team encouraged to adopt it?","Is it reinforced as source of truth for this area?"]},
+  {"Developers":["Is pipeline healthy and data fresh?","Which bugs need triage?","Which enhancement requests are scoped for next sprint?"],
+   "End users":["What feedback or change requests do you have?"],
+   "Executive stakeholders":["When is next usage and value review (for example, quarterly)?","Are success measures agreed at design being met?"]},
+  {"Developers":["Do changed requirements need version update?","Is usage low or a data source stale?"],
+   "End users":["Is dashboard still needed in current form?"],
+   "Executive stakeholders":["Approve retirement or major re-scope?"]}
+];
+
+// Optional tip shown at bottom of a stage section (index = stage)
+const TIPS = ["Ask open-ended questions and listen more than you talk. Discovery is about learning, not solving yet."];
+
+// Build one <details> per stage; closed by default, browser handles open and close
+function renderQuestions(){
+  $("#questions").innerHTML = STAGES.map((s,i)=>{
+    const groups=QUESTIONS[i], n=Object.values(groups).flat().length;
+    const body=Object.entries(groups).map(([who,qs])=>
+      `<div><h3>${esc(who)}</h3><ul>${qs.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></div>`).join("")
+      + (TIPS[i] ? `<p class="tip"><strong>Tip:</strong> ${esc(TIPS[i])}</p>` : "");
+    return `<details class="acc">
+      <summary><span class="num">${i+1}</span><span class="title">${esc(s.name)}</span>
+        <span class="when">${esc(s.when)}</span><span class="count">${n} questions</span></summary>
+      <div class="body">${body}</div>
+    </details>`;
+  }).join("");
+}
+renderQuestions(); // static content: drawn once
+// Sort control: restore saved choice, re-render on change
+$("#sortSel").value = state.sort || "none";
+$("#sortSel").onchange=e=>{ state.sort=e.target.value; save(); renderTracker(); renderList(); };
+// Close every open stage section
+$("#collapseAll").onclick=()=>document.querySelectorAll("#questions details[open]").forEach(d=>d.open=false);
+
+/* ===================== Render all ===================== */
+// Open question section for selected request's current stage, close the rest
+function openSelectedStage(){
+  const r=state.requests.find(x=>x.id===selectedId && !hidden.has(x.dept));
+  if(!r) return;
+  document.querySelectorAll("#questions details").forEach((d,i)=>d.open = i===r.stage);
+}
+let firstRender=true; // page load keeps every section collapsed
+function renderAll(){
+  renderChips(); renderTracker(); renderList(); renderEditor();
+  if(!firstRender) openSelectedStage();
+  firstRender=false;
+}
+renderAll();
+</script>
+</body>
+</html>

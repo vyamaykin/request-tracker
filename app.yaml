@@ -1,0 +1,16 @@
+command: ["streamlit", "run", "app.py"]
+
+env:
+  # Bind a SQL warehouse as an app resource named "sql-warehouse" (Apps UI -> Add resource -> SQL warehouse, CAN_USE).
+  # Until it is bound the app runs in demo mode with in-memory data.
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  # Where the three request_tracker_* Delta tables live. Change if the app should not write to this schema.
+  - name: TRACKER_CATALOG
+    value: "gold"
+  - name: TRACKER_SCHEMA
+    value: "retail_data_science"
+  - name: STREAMLIT_SERVER_HEADLESS
+    value: "true"
+  - name: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+    value: "false"
