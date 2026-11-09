@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Department request tracker</title>
+<title>Work plan and department requests</title>
 <!-- Fonts: Archivo for headings, Public Sans for body -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,9 +11,10 @@
 <style>
 /* ---------- Color tokens (light) ---------- */
 :root{
+  --text:var(--ink); --accent:var(--vis); --hot:var(--today); --mark:#ffe9a8;
   --bg:#F3F6F9; --surface:#FFFFFF; --ink:#14202E; --muted:#5A6878; --line:#D6DEE7;
   --req:#5E9C2F; --vis:#2B74C4; --launch:#1E3A7B;          /* cycle phase colors */
-  --retail:#C08A00; --excel:#7A3FD6; --hr:#C7317A; --contracts:#0E7C70; /* department colors */
+  --retail:#C08A00; --excel:#7A3FD6; --hr:#C7317A; /* department colors */
   --today:#D23B3B; --track:#E7ECF2;
   color-scheme:light;
   box-sizing:border-box;
@@ -25,15 +26,15 @@
   :root:not([data-theme="light"]){
     --bg:#0E1620; --surface:#16212D; --ink:#E6EDF4; --muted:#9AA8B7; --line:#2A3846;
     --req:#7BBE48; --vis:#4E95E0; --launch:#5A7BD0;
-    --retail:#E2AE2A; --excel:#A37BF0; --hr:#E8609F; --contracts:#2FB3A2;
-    --today:#FF6B6B; --track:#223040; color-scheme:dark;
+    --retail:#E2AE2A; --excel:#A37BF0; --hr:#E8609F;
+    --today:#FF6B6B; --track:#223040; --mark:#5a4a14; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0E1620; --surface:#16212D; --ink:#E6EDF4; --muted:#9AA8B7; --line:#2A3846;
   --req:#7BBE48; --vis:#4E95E0; --launch:#5A7BD0;
-  --retail:#E2AE2A; --excel:#A37BF0; --hr:#E8609F; --contracts:#2FB3A2;
-  --today:#FF6B6B; --track:#223040; color-scheme:dark;
+  --retail:#E2AE2A; --excel:#A37BF0; --hr:#E8609F;
+  --today:#FF6B6B; --track:#223040; --mark:#5a4a14; color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -146,9 +147,118 @@ form.edit input,form.edit select,form.edit textarea{border:1px solid var(--line)
 .link-del:hover,.link-del.armed{color:var(--today)}
 
 @media (prefers-reduced-motion:no-preference){.marker circle{transition:r .15s}}
+
+/* ---------- Tab bar ---------- */
+[hidden]{display:none !important}
+.topbar{max-width:1280px;margin:0 auto;padding:16px 20px 0;display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:center}
+.tabs,.io{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.io-msg{color:var(--muted);font-size:13px}
+label.tab{display:inline-block}
+/* ---------- Editable request table (tracker tab) ---------- */
+.rt-wrap{overflow-x:auto}
+.rt{border-collapse:collapse;width:100%;min-width:1100px;font-size:14px}
+.rt th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap;font-family:Archivo,sans-serif}
+.rt td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.rt input,.rt select,.rt textarea{width:100%;border:1px solid transparent;background:transparent;border-radius:6px;padding:5px 7px;font-size:14px}
+.rt select{border-color:var(--line)}
+.rt option{background:var(--surface);color:var(--ink)}
+.rt textarea{resize:vertical;field-sizing:content;min-height:2.4em}
+.rt input:hover,.rt textarea:hover{border-color:var(--line)}
+.rt input:focus,.rt select:focus,.rt textarea:focus{border-color:var(--vis);background:var(--bg);outline:none}
+.rt td:nth-child(1){min-width:180px}
+.rt td:nth-child(4){min-width:200px}
+.rt td:nth-child(5) input,.rt td:nth-child(6) input{min-width:9.5em}
+.rt td:nth-child(7),.rt td:nth-child(8){min-width:220px}
+.tab{border:1px solid var(--line);background:var(--surface);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600}
+.tab[aria-selected="true"]{background:var(--vis);border-color:var(--vis);color:#fff}
+
+/* ---------- Work plan tab (all rules scoped under #plan) ---------- */
+#plan{max-width:1100px;margin:0 auto;padding:8px 20px 48px}
+#plan h1{font-size:1.6rem;font-weight:800;margin:8px 0 4px}
+#plan h2{font-size:1.1rem;margin:32px 0 8px}
+#plan .sub{color:var(--muted);margin:0 0 16px}
+#plan .wp-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+#plan input[type="search"]{flex:1 1 240px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+#plan .wp-chip{padding:8px 12px;background:var(--surface);border:1px solid var(--line);border-radius:6px;cursor:pointer}
+#plan .wp-chip[aria-pressed="true"]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+#plan .wp-count{color:var(--muted);font-size:.9rem}
+#plan .tblwrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px}
+#plan table{border-collapse:collapse;width:100%;min-width:720px}
+#plan th,#plan td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+#plan th{background:var(--surface);font-weight:600;white-space:nowrap}
+#plan th button{all:unset;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+#plan th button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#plan th .arrow{color:var(--muted);font-size:.8rem}
+#plan tr:last-child td{border-bottom:none}
+#plan mark{background:var(--mark);color:inherit;border-radius:2px}
+#plan .tag{display:inline-block;padding:1px 8px;border-radius:10px;border:1px solid var(--line);font-size:.85rem;white-space:nowrap}
+#plan .tag.hard{border-color:var(--hot);color:var(--hot)}
+#plan .wp-empty{padding:16px;color:var(--muted)}
+#plan .note{color:var(--muted);font-size:.9rem;margin-top:6px}
+/* Editable cells: look like text until hovered or focused */
+#plan table{min-width:960px}
+#plan td{padding:6px 8px}
+#plan td input[type="text"],#plan td input[type="date"],#plan td textarea{width:100%;font:inherit;color:inherit;background:transparent;border:1px solid transparent;border-radius:4px;padding:4px 6px}
+#plan td textarea{resize:vertical;field-sizing:content;min-height:2.4em}
+#plan td input:hover,#plan td textarea:hover{border-color:var(--line)}
+#plan td input:focus,#plan td textarea:focus{border-color:var(--accent);background:var(--bg);outline:none}
+#plan td:first-child input[type="text"]{min-width:3.5em}
+#plan td input[type="date"]{min-width:9.5em}
+#plan .hardbox{display:inline-flex;gap:4px;align-items:center;font-size:.85rem;color:var(--hot);margin:4px 0 0 6px}
+/* Department group header row in the tasks table */
+#plan tr.grp td{background:var(--bg);font-weight:700;border-bottom:1px solid var(--line)}
+#plan .grp-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px}
+#plan .grp-n{color:var(--muted);font-weight:400;margin-left:8px}
 </style>
 </head>
 <body>
+
+<!-- Tab bar: switches between the two views -->
+<div class="topbar">
+  <div class="tabs" role="tablist" aria-label="Views">
+    <button class="tab" role="tab" id="tab-plan" aria-controls="plan" aria-selected="false" type="button">Work plan</button>
+    <button class="tab" role="tab" id="tab-requests" aria-controls="requests" aria-selected="true" type="button">Department requests</button>
+  </div>
+  <!-- Save controls: edits auto-save in this browser; export/import moves them between browsers or into the repo -->
+  <div class="io">
+    <span class="io-msg" id="ioMsg" aria-live="polite">Edits auto-save in this browser.</span>
+    <button class="tab" id="exportBtn" type="button">Export data</button>
+    <label class="tab" for="importFile">Import data</label>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+  </div>
+</div>
+
+<!-- Tab 1: work plan, searchable and sortable -->
+<section id="plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
+
+  <h1>Work plan: priorities, owners, due dates</h1>
+  <p class="sub">Every field is editable; edits save in this browser only. Search filters every table. Click a column name to sort.</p>
+
+  <!-- Search and quick filters -->
+  <div class="wp-bar">
+    <input id="q" type="search" placeholder="Search anything: owner, item, report, gap" aria-label="Search all tables">
+    <button class="wp-chip" id="hardOnly" aria-pressed="false">Hard deadlines only</button>
+    <button class="wp-chip" id="groupBtn" aria-pressed="true">Group by department</button>
+    <button class="wp-chip" id="reset">Reset view</button>
+    <button class="wp-chip" id="restoreBtn">Restore defaults</button>
+    <span class="wp-count" id="count" aria-live="polite"></span>
+  </div>
+
+  <h2>Tasks, owners, due dates</h2>
+  <div class="tblwrap"><table id="tasks"></table></div>
+  <p class="note">Priority order: fixed outside deadline first, blockers next, quick wins early.</p>
+
+  <h2>Year end eval: goal to report map</h2>
+  <div class="tblwrap"><table id="goals"></table></div>
+
+  <h2>Risks and open questions</h2>
+  <div class="tblwrap"><table id="risks"></table></div>
+
+</section>
+
+<!-- Tab 2: department request tracker, unchanged -->
+<div id="requests" role="tabpanel" aria-labelledby="tab-requests">
+
 <div class="wrap">
 
   <!-- Header with page actions -->
@@ -195,6 +305,12 @@ form.edit input,form.edit select,form.edit textarea{border:1px solid var(--line)
     </section>
   </div>
 
+  <!-- All shown requests as editable rows: every field is a box -->
+  <section class="panel qcard" aria-labelledby="allTitle">
+    <div class="qhead"><h2 id="allTitle">All requests (edit in place)</h2></div>
+    <div class="rt-wrap"><table class="rt" id="reqTable"></table></div>
+  </section>
+
   <!-- Questions per stage: one collapsible section each, all closed on load -->
   <section class="panel qcard" aria-labelledby="qTitle">
     <div class="qhead">
@@ -206,7 +322,216 @@ form.edit input,form.edit select,form.edit textarea{border:1px solid var(--line)
 
 </div>
 
+
+</div>
+
+<!-- Work plan script, wrapped so its names cannot clash with the tracker script -->
 <script>
+(function(){
+/* ---------- Default data. Used until edited; edits save in this browser only. ---------- */
+const DEFAULTS = {
+  tasks: [
+    { id: "1",   dept: "Retail",       item: "Sales floor audit report sign-off", owner: "Vic builds, approver TBD", due: "2026-11-06", hard: true,  done: "Locked version, named approver replied" },
+    { id: "2a",  dept: "Retail",       item: "Ecommerce east/west year and item goals", owner: "TBD (Ecommerce lead)", due: "2026-11-11", hard: false, done: "Numbers in writing" },
+    { id: "2b",  dept: "Retail",       item: "2027 sales goals sign-off", owner: "Mark Kahrs, Kristy Lance signs off", due: "2026-11-20", hard: false, done: "Signed, version locked" },
+    { id: "3a",  dept: "HR",           item: "Year end eval report map", owner: "Vic", due: "2026-11-13", hard: true,  done: "Map complete, sent to Training" },
+    { id: "3b1", dept: "HR",           item: "\u201CNo Start\u201D rule decision", owner: "Alisson decides, Nathan supplies evidence", due: "2026-11-13", hard: false, done: "Rule in writing" },
+    { id: "3b2", dept: "HR",           item: "Turnover logic fix", owner: "Nathan", due: "2026-11-18", hard: false, done: "Terminations, hires, headcount corrected" },
+    { id: "3b3", dept: "HR",           item: "Turnover validation", owner: "Vic validates, Alisson confirms", due: "2026-11-24", hard: true,  done: "Retail Management shows 9 exits, headcount near 2,600, written OK. Hard stop Dec 1" },
+    { id: "3c",  dept: "HR",           item: "UKG sales per labor hour feed", owner: "TBD (UKG data owner)", due: "2026-11-11", hard: false, done: "Feed confirmed, number trusted" },
+    { id: "5",   dept: "Excel Center", item: "Excel Center UAT", owner: "Vic plus Melissa and Lin", due: "2026-11-30", hard: true,  done: "Testers named, pass criteria written, results logged" }
+  ],
+  goals: [
+    { goal: "Sales budget", report: "Month End Report", gap: "Confirm it shows full year against budget", status: "Confirm" },
+    { goal: "Shop Goodwill item goal", report: "Upright Labs Report", gap: "Confirm date range can be set to full year", status: "Confirm" },
+    { goal: "Production per sq ft (GM and DM)", report: "None named", gap: "Goal over year undefined, clarify with Retail", status: "Clarify" },
+    { goal: "Sales per labor hour ($48 to $50)", report: "None yet", gap: "UKG feed missing", status: "Blocked" },
+    { goal: "Round Up (35%+)", report: "Data Lake, Sales, Round Up Report", gap: "None", status: "Ready" },
+    { goal: "Turnover (75% to 85%)", report: "People Ops Turnover report", gap: "Built but wrong. Nathan fixing, Dec 1 hard line", status: "Fixing" },
+    { goal: "Investigation response (2 days or fewer)", report: "Jira tickets", gap: "HR partner needed", status: "Clarify" }
+  ],
+  risks: [
+    { type: "Risk", text: "Test the theory first: Retail Management shows 74 terminations vs 9 real. If \u201CNo Start\u201D events equal 65, theory holds. If not, cause is different." },
+    { type: "Risk", text: "Likely two bugs: No Starts explain terminations and hires. Wrong headcount fits the department rename (join on name, not code). Fix one and the other stays broken." },
+    { type: "Risk", text: "Rule tradeoff: excluding all No Starts is simple and consistent, but may hide real never-started exits. Alisson picks, in writing." },
+    { type: "Question", text: "Training meeting date? If before Nov 13, item 3 moves above item 2." },
+    { type: "Question", text: "Who approves the audit report?" },
+    { type: "Question", text: "Does Nathan own the BI turnover logic, or does his team route it elsewhere?" }
+  ]
+};
+
+/* ---------- Storage ---------- */
+const KEY = "work-plan-edits-v1";
+/* Load saved edits per table; fall back to defaults when storage is empty or blocked */
+function loadData(){
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { /* use defaults */ }
+  const out = {};
+  for (const k of Object.keys(DEFAULTS)) out[k] = (saved && Array.isArray(saved[k])) ? saved[k] : structuredClone(DEFAULTS[k]);
+  // Contracts department was removed: drop its tasks from older saves or imports
+  out.tasks = out.tasks.filter(r => r.dept !== "Contracts");
+  return out;
+}
+/* Save all tables; ignore failures so the page keeps working */
+function saveData(){ try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
+let data = loadData();
+
+/* ---------- Departments: group order and colors (reuse tracker color tokens) ---------- */
+const DEPT_ORDER = ["Retail", "HR", "Excel Center"];
+const DEPT_COLOR = { "Retail": "var(--retail)", "HR": "var(--hr)", "Excel Center": "var(--excel)" };
+const deptRank = d => { const i = DEPT_ORDER.indexOf(d); return i < 0 ? 99 : i; }; // unknown departments go last
+const deptDot = d => '<span class="grp-dot" style="background:' + (DEPT_COLOR[d] || "var(--muted)") + '"></span>';
+
+/* ---------- Table definitions. type: text (one line), long (multi-line), date ---------- */
+const tables = [
+  { key: "tasks", groupKey: "dept", cols: [
+      { key: "id", label: "#", type: "text" },
+      { key: "dept", label: "Department", type: "text" },
+      { key: "item", label: "Item", type: "long" },
+      { key: "owner", label: "Owner", type: "long" },
+      { key: "due", label: "Proposed due", type: "date" },
+      { key: "done", label: "Done means", type: "long" } ] },
+  { key: "goals", cols: [
+      { key: "goal", label: "Goal", type: "long" }, { key: "report", label: "Report to direct to", type: "long" },
+      { key: "gap", label: "Gap", type: "long" }, { key: "status", label: "Status", type: "text" } ] },
+  { key: "risks", cols: [
+      { key: "type", label: "Type", type: "text" }, { key: "text", label: "Detail", type: "long" } ] }
+];
+
+/* ---------- View state ---------- */
+const state = { q: "", hardOnly: false, groupBy: true, sort: {} }; // sort[tableKey] = {key, dir}
+
+/* Format ISO date as "Fri Nov 6" without timezone shifts (used for search text) */
+function fmtDate(iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || "")) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+/* Escape text so data cannot break the HTML */
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+/* Plain text of a row, used for searching (includes the readable date) */
+function rowText(t, r) { return t.cols.map(c => String(r[c.key] ?? "")).join(" ") + (r.due ? " " + fmtDate(r.due) : ""); }
+
+/* One editable cell. data-* attributes point back to the row so typing updates it. */
+function cell(t, r, i, c) {
+  const attrs = 'data-t="' + t.key + '" data-i="' + i + '" data-k="' + c.key + '" aria-label="' + esc(c.label) + '"';
+  if (c.type === "date") {
+    // Date picker plus "hard" checkbox for task deadlines
+    return '<input type="date" ' + attrs + ' value="' + esc(r[c.key]) + '">'
+      + (t.key === "tasks" ? '<label class="hardbox"><input type="checkbox" data-t="tasks" data-i="' + i + '" data-k="hard"' + (r.hard ? " checked" : "") + '> hard</label>' : "");
+  }
+  if (c.type === "long") return '<textarea rows="2" ' + attrs + '>' + esc(r[c.key]) + '</textarea>';
+  return '<input type="text" ' + attrs + ' value="' + esc(r[c.key]) + '">';
+}
+
+/* Draw one table: filter, sort, group, render inputs */
+function draw(t) {
+  const tbl = document.getElementById(t.key);
+  const s = state.sort[t.key];
+  const q = state.q.toLowerCase();
+  // Keep original index with each row so edits write back to the right object
+  let rows = data[t.key].map((r, i) => ({ r, i }))
+    .filter(({ r }) => (!q || rowText(t, r).toLowerCase().includes(q)) && (!state.hardOnly || t.key !== "tasks" || r.hard));
+  if (s) {
+    rows.sort((a, b) => {
+      const cmp = String(a.r[s.key] ?? "").localeCompare(String(b.r[s.key] ?? ""), undefined, { numeric: true });
+      return s.dir === "asc" ? cmp : -cmp;
+    });
+  }
+  // Grouping: stable sort by department, so chosen sort holds inside each group
+  const grouped = t.groupKey && state.groupBy;
+  if (grouped) rows.sort((a, b) => deptRank(a.r[t.groupKey]) - deptRank(b.r[t.groupKey]) || String(a.r[t.groupKey]).localeCompare(String(b.r[t.groupKey])));
+
+  // Header with sort buttons: cycles ascending, descending, off
+  const head = "<thead><tr>" + t.cols.map(c => {
+    const on = s && s.key === c.key;
+    const arrow = on ? (s.dir === "asc" ? "\u25B2" : "\u25BC") : "\u21C5";
+    const aria = on ? (s.dir === "asc" ? "ascending" : "descending") : "none";
+    return '<th aria-sort="' + aria + '"><button data-sort-t="' + t.key + '" data-sort-k="' + c.key + '">' + esc(c.label) + ' <span class="arrow">' + arrow + "</span></button></th>";
+  }).join("") + "</tr></thead>";
+
+  // Body, with a header row each time the department changes
+  let body = "", last = null;
+  rows.forEach(({ r, i }) => {
+    if (grouped && r[t.groupKey] !== last) {
+      last = r[t.groupKey];
+      const n = rows.filter(x => x.r[t.groupKey] === last).length;
+      body += '<tr class="grp"><td colspan="' + t.cols.length + '">' + deptDot(last) + esc(last || "No department") + '<span class="grp-n">' + n + (n === 1 ? " task" : " tasks") + "</span></td></tr>";
+    }
+    body += "<tr>" + t.cols.map(c => "<td>" + cell(t, r, i, c) + "</td>").join("") + "</tr>";
+  });
+  if (!rows.length) body = '<tr><td class="wp-empty" colspan="' + t.cols.length + '">No matches. Clear search or reset.</td></tr>';
+  tbl.innerHTML = head + "<tbody>" + body + "</tbody>";
+  return rows.length;
+}
+
+/* Redraw all tables and update the row count */
+function render() {
+  const total = tables.reduce((n, t) => n + draw(t), 0);
+  document.getElementById("count").textContent = total + " rows shown";
+}
+
+/* ---------- Events ---------- */
+/* Typing in any cell updates data and saves. No redraw, so the cursor stays put. */
+function onEdit(e) {
+  const el = e.target;
+  if (!el.dataset || !el.dataset.t || el.dataset.i === undefined) return;
+  const row = data[el.dataset.t][Number(el.dataset.i)];
+  row[el.dataset.k] = el.type === "checkbox" ? el.checked : el.value;
+  saveData();
+}
+const planEl = document.getElementById("plan");
+planEl.addEventListener("input", onEdit);
+planEl.addEventListener("change", onEdit);
+
+/* Search and filter controls */
+document.getElementById("q").addEventListener("input", e => { state.q = e.target.value.trim(); render(); });
+document.getElementById("hardOnly").addEventListener("click", e => {
+  state.hardOnly = !state.hardOnly; e.currentTarget.setAttribute("aria-pressed", state.hardOnly); render();
+});
+document.getElementById("groupBtn").addEventListener("click", e => {
+  state.groupBy = !state.groupBy; e.currentTarget.setAttribute("aria-pressed", state.groupBy); render();
+});
+/* Reset view: clears search, filters, sorting (keeps edits) */
+document.getElementById("reset").addEventListener("click", () => {
+  state.q = ""; state.hardOnly = false; state.groupBy = true; state.sort = {};
+  document.getElementById("q").value = "";
+  document.getElementById("hardOnly").setAttribute("aria-pressed", "false");
+  document.getElementById("groupBtn").setAttribute("aria-pressed", "true");
+  render();
+});
+/* Restore defaults: wipes edits. Two clicks, because browser pop-ups are blocked in this viewer. */
+const restore = document.getElementById("restoreBtn"); let armed = false, timer;
+restore.addEventListener("click", () => {
+  if (!armed) {
+    armed = true; restore.textContent = "Click again to wipe edits";
+    timer = setTimeout(() => { armed = false; restore.textContent = "Restore defaults"; }, 4000);
+    return;
+  }
+  clearTimeout(timer); armed = false; restore.textContent = "Restore defaults";
+  data = structuredClone(DEFAULTS);
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  render();
+});
+/* Sort buttons (one listener for all tables) */
+planEl.addEventListener("click", e => {
+  const b = e.target.closest("th button[data-sort-t]");
+  if (!b) return;
+  const id = b.dataset.sortT, key = b.dataset.sortK, cur = state.sort[id];
+  if (!cur || cur.key !== key) state.sort[id] = { key, dir: "asc" };
+  else if (cur.dir === "asc") state.sort[id] = { key, dir: "desc" };
+  else delete state.sort[id];
+  render();
+});
+
+render();
+})();
+
+</script>
+
+<!-- Department request tracker script, unchanged -->
+<script>
+
 /* ===================== Static configuration ===================== */
 
 // 9 release stages from the release process doc, with Responsible / Accountable and typical timing
@@ -228,8 +553,7 @@ const OLD_TO_NEW = [0,1,1,1,1,1,1,1,1,3,2,2,6,3,5,7];
 const DEPTS = {
   "Retail":       {short:"R",  color:"var(--retail)"},
   "Excel Center": {short:"EC", color:"var(--excel)"},
-  "HR":           {short:"HR", color:"var(--hr)"},
-  "Contracts":    {short:"C",  color:"var(--contracts)"}
+  "HR":           {short:"HR", color:"var(--hr)"}
 };
 const STORE_KEY = "dept-request-tracker-v1"; // localStorage key
 
@@ -240,7 +564,19 @@ const SEED = {
     {id:"r1", dept:"Retail",       name:"Retail - New",                    jira:"GDL-947", stage:2, start:"2026-05-21", end:"2026-11-30", notes:""},
     {id:"r2", dept:"Excel Center", name:"Excel Center Report Development", jira:"GDL-128", stage:3, start:"2025-07-18", end:"2026-11-30", notes:""},
     {id:"r3", dept:"HR",           name:"HR reporting",                    jira:"",        stage:0, start:"2026-11-02", end:"2027-02-01", notes:""},
-    {id:"r4", dept:"Contracts",    name:"Contract Report Portal",          jira:"",        stage:0, start:"2026-10-28", end:"2027-01-29", notes:""}
+    // Work plan requests. Start dates are placeholders (today). GDL keys from Jira search; blank = no story found.
+    {id:"p1", dept:"Retail", name:"Sales floor audit report sign-off", jira:"GDL-846", stage:4, start:"2026-11-03", end:"2026-11-06",
+     notes:"Sign-off needed for auditors. Related: GDL-849 gold table, GDL-1344 email export.", blockers:["Approver not named"]},
+    {id:"p2", dept:"Retail", name:"Ecommerce east/west year and item goals", jira:"GDL-1184, GDL-1098", stage:1, start:"2026-11-03", end:"2026-11-11",
+     notes:"GDL-1184 West goals, GDL-1098 East goals. Feeds 2027 sales goals sign-off and year end eval.", blockers:["Goal numbers not received from Ecommerce lead"]},
+    {id:"p3", dept:"Retail", name:"2027 sales goals sign-off", jira:"GDL-1420", stage:4, start:"2026-11-03", end:"2026-11-20",
+     notes:"Mark Kahrs and Kristy Lance sign off. Related: GDL-1315 workbook demo, GDL-1207 forecast demo.", blockers:["Waits on ecommerce goals (GDL-1184, GDL-1098)"]},
+    {id:"p4", dept:"HR", name:"Year end eval report map", jira:"GDL-1469", stage:0, start:"2026-11-03", end:"2026-11-13",
+     notes:"Map cascaded GM and DM goals to reports for Training meeting with Retail. Sales budget: Month End Report. Shop Goodwill: Upright Labs Report. Round Up: Round Up Report. Turnover: People Ops Turnover report.",
+     blockers:["UKG sales per labor hour feed missing","Production per sq ft yearly goal undefined","Investigation response needs HR partner","Training meeting date unknown"]},
+    {id:"p5", dept:"HR", name:"Turnover correction (People Ops Turnover report)", jira:"", stage:2, start:"2026-11-03", end:"2026-11-24",
+     notes:"Nathan fixes, Vic validates, Alisson confirms. Hard stop Dec 1. Suspected: No Start events counted as terminations and hires; department rename joined on name, not code. Test: Retail Management 9 real exits vs 74 shown; headcount near 2,600. No GDL story found.",
+     blockers:["No Start rule decision pending (Alisson)"]}
   ],
   stageModel:9
 };
@@ -256,11 +592,23 @@ function load(){
       if(s && Array.isArray(s.requests)){
         // One-time move from 16-step cycle to 9 stages, keeping names, depts and dates
         if(s.stageModel !== 9){ s.requests.forEach(r => r.stage = OLD_TO_NEW[r.stage] ?? 0); s.stageModel = 9; }
-        return s;
+        return mergeSeed(s);
       }
     }
   }catch(e){ /* storage unavailable: use seed */ }
-  return structuredClone(SEED);
+  return mergeSeed(structuredClone(SEED));
+}
+// Add seed requests this browser has never seen. Deleted ones stay deleted, because ids are remembered.
+function mergeSeed(s){
+  // Contracts department was removed: drop its requests and any saved custom department of that name
+  s.requests = s.requests.filter(r => r.dept !== "Contracts");
+  if(Array.isArray(s.customDepts)) s.customDepts = s.customDepts.filter(d => d.name !== "Contracts");
+  // First run with this logic: count original seed ids and current ids as already seen
+  s.seedAdded = s.seedAdded || [...new Set(["r1","r2","r3","r4","p6", ...s.requests.map(r => r.id)])];
+  for(const r of SEED.requests){
+    if(!s.seedAdded.includes(r.id)){ s.requests.push(structuredClone(r)); s.seedAdded.push(r.id); }
+  }
+  return s;
 }
 // Save state; ignore failures so page keeps working
 function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
@@ -274,8 +622,8 @@ const initials = n => n.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toU
 // Restore saved custom departments into DEPTS
 state.customDepts = state.customDepts || [];
 for(const d of state.customDepts) DEPTS[d.name] = {short:d.short, color:d.color};
-// Departments filtered out: start with only Contracts shown
-const hidden = new Set(Object.keys(DEPTS).filter(d => d !== "Contracts"));
+// Departments filtered out: none, so every department shows on load
+const hidden = new Set();
 // Request open in editor: first visible one
 let selectedId = (state.requests.find(r => !hidden.has(r.dept)) || {}).id || null;
 
@@ -308,6 +656,16 @@ function renderChips(){
     };
     box.appendChild(b);
   }
+  // Select all: shows every department; pressed state when nothing is hidden
+  const all=document.createElement("button");
+  all.type="button"; all.className="chip"; all.textContent="Select all";
+  all.setAttribute("aria-pressed", String(hidden.size===0));
+  all.onclick=()=>{
+    hidden.clear();
+    if(!state.requests.some(r=>r.id===selectedId)) selectedId=(state.requests[0]||{}).id||null; // keep current pick if it exists
+    renderAll();
+  };
+  box.appendChild(all);
 }
 
 /* ===================== Progress tracker ===================== */
@@ -349,7 +707,9 @@ function renderTracker(){
 }
 
 /* ===================== Request list ===================== */
+let tableBusy=false; // true while a table edit is applied, so the table is not redrawn under the cursor
 function renderList(){
+  if(!tableBusy && typeof renderTable==="function") renderTable(); // keep table in step; skipped on first load before table script runs
   const ul=$("#list"); ul.innerHTML="";
   const reqs=visible();
   if(!reqs.length){ ul.innerHTML=`<li class="empty">No requests shown. Turn on a department above or add a request.</li>`; return; }
@@ -587,6 +947,116 @@ function renderAll(){
   firstRender=false;
 }
 renderAll();
+
+</script>
+
+<!-- Editable request table for the tracker -->
+<script>
+/* ===================== Editable request table ===================== */
+// One row per shown request. Department and stage are dropdowns so colors and stage math stay valid.
+function renderTable(){
+  const tbl=$("#reqTable"), reqs=visible();
+  const deptOpts=d=>Object.keys(DEPTS).map(x=>`<option ${x===d?"selected":""}>${esc(x)}</option>`).join("");
+  const stageOpts=s=>STEPS.map((x,i)=>`<option value="${i}" ${i===s?"selected":""}>${i+1}. ${esc(x)}</option>`).join("");
+  const head=`<thead><tr><th>Name</th><th>Department</th><th>Jira</th><th>Stage</th><th>Start</th><th>Target end</th><th>Notes</th><th>Blockers (one per line)</th></tr></thead>`;
+  if(!reqs.length){ tbl.innerHTML=head+`<tbody><tr><td colspan="8" class="empty">No requests shown. Turn on a department above.</td></tr></tbody>`; return; }
+  tbl.innerHTML=head+"<tbody>"+reqs.map(r=>`<tr data-id="${esc(r.id)}">
+    <td><textarea rows="2" data-f="name" aria-label="Name">${esc(r.name)}</textarea></td>
+    <td><select data-f="dept" aria-label="Department">${deptOpts(r.dept)}</select></td>
+    <td><input data-f="jira" value="${esc(r.jira||"")}" aria-label="Jira key" placeholder="GDL-123"></td>
+    <td><select data-f="stage" aria-label="Stage">${stageOpts(r.stage)}</select></td>
+    <td><input type="date" data-f="start" value="${esc(r.start||"")}" aria-label="Start"></td>
+    <td><input type="date" data-f="end" value="${esc(r.end||"")}" aria-label="Target end"></td>
+    <td><textarea rows="2" data-f="notes" aria-label="Notes">${esc(r.notes||"")}</textarea></td>
+    <td><textarea rows="2" data-f="blockers" aria-label="Blockers, one per line">${esc((r.blockers||[]).join("\n"))}</textarea></td>
+  </tr>`).join("")+"</tbody>";
+}
+// Write one table edit back to its request, save, and redraw the other views
+$("#reqTable").addEventListener("input",e=>{
+  const el=e.target, f=el.dataset&&el.dataset.f; if(!f) return;
+  const r=state.requests.find(x=>x.id===el.closest("tr").dataset.id); if(!r) return;
+  if(f==="stage") r.stage=Number(el.value);
+  else if(f==="blockers") r.blockers=el.value.split("\n").map(t=>t.trim()).filter(Boolean);
+  else r[f]=el.value;
+  // Target end never before start
+  if((f==="start"||f==="end") && r.start && r.end && r.end<r.start){ r.end=r.start; el.closest("tr").querySelector('[data-f="end"]').value=r.end; }
+  save();
+  tableBusy=true; renderChips(); renderTracker(); renderList(); renderEditor(); tableBusy=false;
+  if(f==="dept"||f==="stage") renderTable(); // dropdown changes can move or restyle rows
+});
+renderTable();
+</script>
+
+<!-- Save, export, import (works on GitHub Pages or any static host) -->
+<script>
+(function(){
+  const KEYS=["work-plan-edits-v1","dept-request-tracker-v1"]; // work plan edits, tracker state
+  const FILE="tracker-data.json";                              // shared file, placed next to index.html in the repo
+  const msg=t=>{ document.getElementById("ioMsg").textContent=t; };
+  const get=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
+  const set=k=>v=>{ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } };
+
+  // Export: bundle both saved states into one JSON download
+  document.getElementById("exportBtn").addEventListener("click",()=>{
+    const out={app:"work-plan-tracker",version:1,exportedAt:new Date().toISOString(),data:{}};
+    KEYS.forEach(k=>{ const v=get(k); if(v) out.data[k]=JSON.parse(v); });
+    if(!Object.keys(out.data).length){ msg("Nothing edited yet, so nothing to export."); return; }
+    const url=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:"application/json"}));
+    const a=document.createElement("a"); a.href=url; a.download=FILE;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    msg("Exported "+FILE+". Upload it to the repo to share with everyone.");
+  });
+
+  // Apply a data file: write both states into this browser
+  function apply(obj){
+    if(!obj||obj.app!=="work-plan-tracker"||!obj.data) throw new Error("not a tracker data file");
+    KEYS.forEach(k=>{ if(obj.data[k]) set(k)(JSON.stringify(obj.data[k])); });
+  }
+
+  // Import: read chosen file, apply, reload so both views pick it up
+  document.getElementById("importFile").addEventListener("change",async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    try{ apply(JSON.parse(await f.text())); location.reload(); }
+    catch(err){ msg("Import failed: "+err.message+"."); }
+    e.target.value="";
+  });
+
+  // First visit in a browser with no saved edits: load shared file from the site if it exists, then reload once
+  if(KEYS.every(k=>!get(k)) && location.protocol.startsWith("http")){
+    fetch(FILE,{cache:"no-store"}).then(r=>r.ok?r.json():null).then(obj=>{
+      if(!obj) return;
+      apply(obj);
+      if(KEYS.some(k=>get(k))) location.reload();
+    }).catch(()=>{ /* no shared file yet: built-in data stays */ });
+  }
+})();
+</script>
+
+<!-- Tab switching -->
+<script>
+
+/* ===================== Tabs ===================== */
+(function(){
+  // Map tab names to their panel and button elements
+  const names = ["plan", "requests"];
+  const panel = n => document.getElementById(n);
+  const btn = n => document.getElementById("tab-" + n);
+  // Show one tab, hide the other, update ARIA state
+  function show(n){
+    names.forEach(x => {
+      panel(x).hidden = x !== n;
+      btn(x).setAttribute("aria-selected", String(x === n));
+      btn(x).tabIndex = x === n ? 0 : -1;
+    });
+  }
+  // Read the tab name from the URL hash, default to department requests
+  const fromHash = () => (location.hash === "#plan" ? "plan" : "requests");
+  names.forEach(n => btn(n).addEventListener("click", () => { location.hash = n; show(n); }));
+  window.addEventListener("hashchange", () => show(fromHash()));
+  show(fromHash());
+})();
+
 </script>
 </body>
 </html>
