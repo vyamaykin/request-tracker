@@ -14,7 +14,7 @@
   --text:var(--ink); --accent:var(--vis); --hot:var(--today); --mark:#ffe9a8;
   --bg:#F3F6F9; --surface:#FFFFFF; --ink:#14202E; --muted:#5A6878; --line:#D6DEE7;
   --req:#5E9C2F; --vis:#2B74C4; --launch:#1E3A7B;          /* cycle phase colors */
-  --retail:#C08A00; --excel:#7A3FD6; --hr:#C7317A; --contracts:#0E7C70; /* department colors */
+  --retail:#C08A00; --excel:#7A3FD6; --hr:#C7317A; /* department colors */
   --today:#D23B3B; --track:#E7ECF2;
   color-scheme:light;
   box-sizing:border-box;
@@ -26,14 +26,14 @@
   :root:not([data-theme="light"]){
     --bg:#0E1620; --surface:#16212D; --ink:#E6EDF4; --muted:#9AA8B7; --line:#2A3846;
     --req:#7BBE48; --vis:#4E95E0; --launch:#5A7BD0;
-    --retail:#E2AE2A; --excel:#A37BF0; --hr:#E8609F; --contracts:#2FB3A2;
+    --retail:#E2AE2A; --excel:#A37BF0; --hr:#E8609F;
     --today:#FF6B6B; --track:#223040; --mark:#5a4a14; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0E1620; --surface:#16212D; --ink:#E6EDF4; --muted:#9AA8B7; --line:#2A3846;
   --req:#7BBE48; --vis:#4E95E0; --launch:#5A7BD0;
-  --retail:#E2AE2A; --excel:#A37BF0; --hr:#E8609F; --contracts:#2FB3A2;
+  --retail:#E2AE2A; --excel:#A37BF0; --hr:#E8609F;
   --today:#FF6B6B; --track:#223040; --mark:#5a4a14; color-scheme:dark;
 }
 *,*::before,*::after{box-sizing:inherit}
@@ -216,8 +216,8 @@ label.tab{display:inline-block}
 <!-- Tab bar: switches between the two views -->
 <div class="topbar">
   <div class="tabs" role="tablist" aria-label="Views">
-    <button class="tab" role="tab" id="tab-plan" aria-controls="plan" aria-selected="true" type="button">Work plan</button>
-    <button class="tab" role="tab" id="tab-requests" aria-controls="requests" aria-selected="false" type="button">Department requests</button>
+    <button class="tab" role="tab" id="tab-plan" aria-controls="plan" aria-selected="false" type="button">Work plan</button>
+    <button class="tab" role="tab" id="tab-requests" aria-controls="requests" aria-selected="true" type="button">Department requests</button>
   </div>
   <!-- Save controls: edits auto-save in this browser; export/import moves them between browsers or into the repo -->
   <div class="io">
@@ -229,7 +229,7 @@ label.tab{display:inline-block}
 </div>
 
 <!-- Tab 1: work plan, searchable and sortable -->
-<section id="plan" role="tabpanel" aria-labelledby="tab-plan">
+<section id="plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
 
   <h1>Work plan: priorities, owners, due dates</h1>
   <p class="sub">Every field is editable; edits save in this browser only. Search filters every table. Click a column name to sort.</p>
@@ -251,16 +251,13 @@ label.tab{display:inline-block}
   <h2>Year end eval: goal to report map</h2>
   <div class="tblwrap"><table id="goals"></table></div>
 
-  <h2>Contracts recommendation (real tradeoff)</h2>
-  <div class="tblwrap"><table id="contracts"></table></div>
-
   <h2>Risks and open questions</h2>
   <div class="tblwrap"><table id="risks"></table></div>
 
 </section>
 
 <!-- Tab 2: department request tracker, unchanged -->
-<div id="requests" role="tabpanel" aria-labelledby="tab-requests" hidden>
+<div id="requests" role="tabpanel" aria-labelledby="tab-requests">
 
 <div class="wrap">
 
@@ -342,7 +339,6 @@ const DEFAULTS = {
     { id: "3b2", dept: "HR",           item: "Turnover logic fix", owner: "Nathan", due: "2026-11-18", hard: false, done: "Terminations, hires, headcount corrected" },
     { id: "3b3", dept: "HR",           item: "Turnover validation", owner: "Vic validates, Alisson confirms", due: "2026-11-24", hard: true,  done: "Retail Management shows 9 exits, headcount near 2,600, written OK. Hard stop Dec 1" },
     { id: "3c",  dept: "HR",           item: "UKG sales per labor hour feed", owner: "TBD (UKG data owner)", due: "2026-11-11", hard: false, done: "Feed confirmed, number trusted" },
-    { id: "4",   dept: "Contracts",    item: "Contracts recommendation", owner: "Vic to Eva", due: "2026-11-04", hard: true,  done: "Email sent with options" },
     { id: "5",   dept: "Excel Center", item: "Excel Center UAT", owner: "Vic plus Melissa and Lin", due: "2026-11-30", hard: true,  done: "Testers named, pass criteria written, results logged" }
   ],
   goals: [
@@ -353,11 +349,6 @@ const DEFAULTS = {
     { goal: "Round Up (35%+)", report: "Data Lake, Sales, Round Up Report", gap: "None", status: "Ready" },
     { goal: "Turnover (75% to 85%)", report: "People Ops Turnover report", gap: "Built but wrong. Nathan fixing, Dec 1 hard line", status: "Fixing" },
     { goal: "Investigation response (2 days or fewer)", report: "Jira tickets", gap: "HR partner needed", status: "Clarify" }
-  ],
-  contracts: [
-    { option: "A: Power BI only", strength: "Governed rates and cost views", weakness: "Weak for typed inputs. Like a calculator with no keypad" },
-    { option: "B: Power BI plus input app (e.g. Power Apps)", strength: "Handles inputs and audit trail", weakness: "More build, more owners" },
-    { option: "Lean", strength: "30 min discovery, then pilot one contract type", weakness: "Test against Eva\u2019s spreadsheet for matching totals. Her email names no pricing rules owner or rate source" }
   ],
   risks: [
     { type: "Risk", text: "Test the theory first: Retail Management shows 74 terminations vs 9 real. If \u201CNo Start\u201D events equal 65, theory holds. If not, cause is different." },
@@ -377,6 +368,8 @@ function loadData(){
   try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { /* use defaults */ }
   const out = {};
   for (const k of Object.keys(DEFAULTS)) out[k] = (saved && Array.isArray(saved[k])) ? saved[k] : structuredClone(DEFAULTS[k]);
+  // Contracts department was removed: drop its tasks from older saves or imports
+  out.tasks = out.tasks.filter(r => r.dept !== "Contracts");
   return out;
 }
 /* Save all tables; ignore failures so the page keeps working */
@@ -384,8 +377,8 @@ function saveData(){ try { localStorage.setItem(KEY, JSON.stringify(data)); } ca
 let data = loadData();
 
 /* ---------- Departments: group order and colors (reuse tracker color tokens) ---------- */
-const DEPT_ORDER = ["Retail", "HR", "Contracts", "Excel Center"];
-const DEPT_COLOR = { "Retail": "var(--retail)", "HR": "var(--hr)", "Contracts": "var(--contracts)", "Excel Center": "var(--excel)" };
+const DEPT_ORDER = ["Retail", "HR", "Excel Center"];
+const DEPT_COLOR = { "Retail": "var(--retail)", "HR": "var(--hr)", "Excel Center": "var(--excel)" };
 const deptRank = d => { const i = DEPT_ORDER.indexOf(d); return i < 0 ? 99 : i; }; // unknown departments go last
 const deptDot = d => '<span class="grp-dot" style="background:' + (DEPT_COLOR[d] || "var(--muted)") + '"></span>';
 
@@ -401,8 +394,6 @@ const tables = [
   { key: "goals", cols: [
       { key: "goal", label: "Goal", type: "long" }, { key: "report", label: "Report to direct to", type: "long" },
       { key: "gap", label: "Gap", type: "long" }, { key: "status", label: "Status", type: "text" } ] },
-  { key: "contracts", cols: [
-      { key: "option", label: "Option", type: "long" }, { key: "strength", label: "Strength", type: "long" }, { key: "weakness", label: "Weakness or note", type: "long" } ] },
   { key: "risks", cols: [
       { key: "type", label: "Type", type: "text" }, { key: "text", label: "Detail", type: "long" } ] }
 ];
@@ -562,8 +553,7 @@ const OLD_TO_NEW = [0,1,1,1,1,1,1,1,1,3,2,2,6,3,5,7];
 const DEPTS = {
   "Retail":       {short:"R",  color:"var(--retail)"},
   "Excel Center": {short:"EC", color:"var(--excel)"},
-  "HR":           {short:"HR", color:"var(--hr)"},
-  "Contracts":    {short:"C",  color:"var(--contracts)"}
+  "HR":           {short:"HR", color:"var(--hr)"}
 };
 const STORE_KEY = "dept-request-tracker-v1"; // localStorage key
 
@@ -574,7 +564,6 @@ const SEED = {
     {id:"r1", dept:"Retail",       name:"Retail - New",                    jira:"GDL-947", stage:2, start:"2026-05-21", end:"2026-11-30", notes:""},
     {id:"r2", dept:"Excel Center", name:"Excel Center Report Development", jira:"GDL-128", stage:3, start:"2025-07-18", end:"2026-11-30", notes:""},
     {id:"r3", dept:"HR",           name:"HR reporting",                    jira:"",        stage:0, start:"2026-11-02", end:"2027-02-01", notes:""},
-    {id:"r4", dept:"Contracts",    name:"Contract Report Portal",          jira:"",        stage:0, start:"2026-10-28", end:"2027-01-29", notes:""},
     // Work plan requests. Start dates are placeholders (today). GDL keys from Jira search; blank = no story found.
     {id:"p1", dept:"Retail", name:"Sales floor audit report sign-off", jira:"GDL-846", stage:4, start:"2026-11-03", end:"2026-11-06",
      notes:"Sign-off needed for auditors. Related: GDL-849 gold table, GDL-1344 email export.", blockers:["Approver not named"]},
@@ -587,10 +576,7 @@ const SEED = {
      blockers:["UKG sales per labor hour feed missing","Production per sq ft yearly goal undefined","Investigation response needs HR partner","Training meeting date unknown"]},
     {id:"p5", dept:"HR", name:"Turnover correction (People Ops Turnover report)", jira:"", stage:2, start:"2026-11-03", end:"2026-11-24",
      notes:"Nathan fixes, Vic validates, Alisson confirms. Hard stop Dec 1. Suspected: No Start events counted as terminations and hires; department rename joined on name, not code. Test: Retail Management 9 real exits vs 74 shown; headcount near 2,600. No GDL story found.",
-     blockers:["No Start rule decision pending (Alisson)"]},
-    {id:"p6", dept:"Contracts", name:"Contract pricing recommendation", jira:"", stage:0, start:"2026-11-03", end:"2026-11-04",
-     notes:"Reply to Eva. Option A: Power BI only. Option B: Power BI plus input app. Lean: 30 min discovery, pilot one contract type. No GDL story found. Related: ITINF-1298 (pricing platform requirements). May overlap Contract Report Portal.",
-     blockers:["Pricing rules owner and rate source not named"]}
+     blockers:["No Start rule decision pending (Alisson)"]}
   ],
   stageModel:9
 };
@@ -614,8 +600,11 @@ function load(){
 }
 // Add seed requests this browser has never seen. Deleted ones stay deleted, because ids are remembered.
 function mergeSeed(s){
+  // Contracts department was removed: drop its requests and any saved custom department of that name
+  s.requests = s.requests.filter(r => r.dept !== "Contracts");
+  if(Array.isArray(s.customDepts)) s.customDepts = s.customDepts.filter(d => d.name !== "Contracts");
   // First run with this logic: count original seed ids and current ids as already seen
-  s.seedAdded = s.seedAdded || [...new Set(["r1","r2","r3","r4", ...s.requests.map(r => r.id)])];
+  s.seedAdded = s.seedAdded || [...new Set(["r1","r2","r3","r4","p6", ...s.requests.map(r => r.id)])];
   for(const r of SEED.requests){
     if(!s.seedAdded.includes(r.id)){ s.requests.push(structuredClone(r)); s.seedAdded.push(r.id); }
   }
@@ -633,8 +622,8 @@ const initials = n => n.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toU
 // Restore saved custom departments into DEPTS
 state.customDepts = state.customDepts || [];
 for(const d of state.customDepts) DEPTS[d.name] = {short:d.short, color:d.color};
-// Departments filtered out: start with only Contracts shown
-const hidden = new Set(Object.keys(DEPTS).filter(d => d !== "Contracts"));
+// Departments filtered out: none, so every department shows on load
+const hidden = new Set();
 // Request open in editor: first visible one
 let selectedId = (state.requests.find(r => !hidden.has(r.dept)) || {}).id || null;
 
@@ -1061,8 +1050,8 @@ renderTable();
       btn(x).tabIndex = x === n ? 0 : -1;
     });
   }
-  // Read the tab name from the URL hash, default to plan
-  const fromHash = () => (location.hash === "#requests" ? "requests" : "plan");
+  // Read the tab name from the URL hash, default to department requests
+  const fromHash = () => (location.hash === "#plan" ? "plan" : "requests");
   names.forEach(n => btn(n).addEventListener("click", () => { location.hash = n; show(n); }));
   window.addEventListener("hashchange", () => show(fromHash()));
   show(fromHash());
